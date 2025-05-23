@@ -197,8 +197,8 @@ def process_frame_with_onnx(frame, ort_session, input_name, emotion_model, devic
     height, width = frame.shape[:2]
     
     # Preprocess image for ONNX face detection
-    input_width = 320
-    input_height = 240  # Changed from 320 to 240
+    input_width = 640
+    input_height = 480  # Changed from 320 to 240
     image = cv2.resize(frame_rgb, (input_width, input_height))
     image_mean = np.array([127, 127, 127])
     image = (image - image_mean) / 128
@@ -247,10 +247,10 @@ def process_frame_with_onnx(frame, ort_session, input_name, emotion_model, devic
     
     return frame, results
 
-# Process video with ONNX face detection and emotion recognition
+# Process video with ONNX face detection and emotion recognition using batch processing
 def process_video_with_onnx(video_path, emotion_model, device, output_path=None, sample_rate=15, 
                            display=True, face_model_path=None):
-    """Process video file for emotion detection using ONNX face detection"""
+    """Process video file for emotion detection using ONNX face detection with batch processing"""
     # Load ONNX face detection model
     onnx_path = None
     
@@ -301,6 +301,7 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
     frame_step = max(1, int(fps / sample_rate))
     print(f"Video properties: {frame_width}x{frame_height}, {fps} FPS")
     print(f"Processing every {frame_step} frames to achieve {sample_rate} samples per second")
+    print(f"Batch processing: 4 frames at once")
     
     # Setup video writer if output path provided
     out = None
@@ -310,73 +311,194 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
     
     frame_count = 0
     processed_count = 0
-    previous_results = []  # Store the most recent detection results
-    previous_face_regions = []  # Store previous face regions
+    previous_results = [{}, {}, {}, {}]  # Store results for each frame position
     
     # Create a progress bar
     pbar = tqdm(total=total_frames, desc="Processing video", unit="frames")
     
     try:
         while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+            batch_frames = []
+            batch_frames_original = []
+            valid_frames = 0
             
-            # Decide whether to process this frame
-            if frame_count % frame_step == 0:
-                # Process the frame with ONNX face detection and emotion prediction
-                processed_frame, results = process_frame_with_onnx(
-                    frame.copy(), ort_session, input_name, emotion_model, device, previous_face_regions
-                )
-                processed_count += 1
-                previous_results = results
+            # Read 4 frames for batch processing
+            for _ in range(4):
+                ret, frame = cap.read()
+                if not ret:
+                    break
                 
-                # Update previous_face_regions for the next frame
-                previous_face_regions = [(r['bbox'][0], r['bbox'][1], 
-                                         r['bbox'][0] + r['bbox'][2], 
-                                         r['bbox'][1] + r['bbox'][3]) 
-                                        for r in results]
+                frame_count += 1
+                valid_frames += 1
+                batch_frames_original.append(frame.copy())
                 
-                # Update progress bar
-                pbar.set_postfix({"Detected faces": len(results)})
+                # Only process every frame_step frames
+                if frame_count % frame_step == 0:
+                    batch_frames.append(frame.copy())
+                else:
+                    # For frames we wouldn't normally process, add a placeholder
+                    batch_frames.append(None)
                 
-                # Display if requested
-                if display:
-                    cv2.imshow('Facial Emotion Analysis', processed_frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to quit
-                        break
+                pbar.update(1)
+            
+            if valid_frames == 0:
+                break  # End of video
+            
+            # Process the batch of frames
+            if any(frame is not None for frame in batch_frames):
+                # Create a 2x2 grid of frames for batch processing
+                grid_h = 2 * frame_height
+                grid_w = 2 * frame_width
+                grid_image = np.zeros((grid_h, grid_w, 3), dtype=np.uint8)
                 
-                # Write to output video
-                if out:
-                    out.write(processed_frame)
-            else:
-                # For unprocessed frames, use previous results
-                annotated_frame = frame.copy()
+                # Fill the grid with frames (if available)
+                for i, frame in enumerate(batch_frames):
+                    if frame is not None:
+                        row, col = divmod(i, 2)
+                        y_offset = row * frame_height
+                        x_offset = col * frame_width
+                        grid_image[y_offset:y_offset+frame_height, x_offset:x_offset+frame_width] = frame
                 
-                for result in previous_results:
-                    x, y, w, h = result['bbox']
-                    emotion = result['emotion']
-                    probs = result['probabilities']
-                    color = EMOTION_COLORS[emotion]
+                # Preprocess the grid image for ONNX face detection
+                grid_rgb = cv2.cvtColor(grid_image, cv2.COLOR_BGR2RGB)
+                input_width = 640
+                input_height = 480
+                processed_grid = cv2.resize(grid_rgb, (input_width, input_height))
+                image_mean = np.array([127, 127, 127])
+                processed_grid = (processed_grid - image_mean) / 128
+                processed_grid = np.transpose(processed_grid, [2, 0, 1])
+                processed_grid = np.expand_dims(processed_grid, axis=0)
+                processed_grid = processed_grid.astype(np.float32)
+                
+                # Run ONNX inference on the grid
+                confidences, boxes = ort_session.run(None, {input_name: processed_grid})
+                
+                # Process the output to get face bounding boxes
+                face_boxes, _, face_probs = predict_faces(grid_w, grid_h, confidences, boxes, prob_threshold=0.6)
+                
+                # Process each detected face and map back to original frames
+                frame_results = [{}, {}, {}, {}]
+                
+                for i in range(len(face_boxes)):
+                    x1, y1, x2, y2 = face_boxes[i]
                     
-                    # Draw rectangle and emotion
-                    cv2.rectangle(annotated_frame, (x, y), (x+w, y+h), color, 2)
-                    emotion_text = f"{EMOTIONS[emotion]}: {probs[emotion]*100:.1f}%"
-                    cv2.putText(annotated_frame, emotion_text, (x, y-10),
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                    # Determine which frame this face belongs to
+                    frame_row = int(y1 // frame_height)
+                    frame_col = int(x1 // frame_width)
+                    frame_idx = frame_row * 2 + frame_col
+                    
+                    if frame_idx >= valid_frames or batch_frames[frame_idx] is None:
+                        continue  # Skip faces in invalid frames or frames we're not processing
+                    
+                    # Adjust coordinates to the original frame
+                    x1_local = x1 - (frame_col * frame_width)
+                    y1_local = y1 - (frame_row * frame_height)
+                    x2_local = x2 - (frame_col * frame_width)
+                    y2_local = y2 - (frame_row * frame_height)
+                    
+                    # Make sure coordinates are within the frame bounds
+                    x1_local = max(0, min(x1_local, frame_width))
+                    y1_local = max(0, min(y1_local, frame_height))
+                    x2_local = max(0, min(x2_local, frame_width))
+                    y2_local = max(0, min(y2_local, frame_height))
+                    
+                    w_local = x2_local - x1_local
+                    h_local = y2_local - y1_local
+                    
+                    # Skip if face region is too small
+                    if w_local <= 0 or h_local <= 0:
+                        continue
+                    
+                    # Extract the face region for emotion prediction
+                    original_frame = batch_frames_original[frame_idx]
+                    face_region = cv2.cvtColor(original_frame, cv2.COLOR_BGR2RGB)[y1_local:y2_local, x1_local:x2_local]
+                    
+                    # Skip if face region is empty
+                    if face_region.size == 0:
+                        continue
+                    
+                    # Process the face for emotion prediction
+                    face_tensor = preprocess_face(face_region)
+                    emotion, probs = predict_emotion(emotion_model, face_tensor, device)
+                    
+                    # Store results for this frame
+                    if 'faces' not in frame_results[frame_idx]:
+                        frame_results[frame_idx]['faces'] = []
+                    
+                    frame_results[frame_idx]['faces'].append({
+                        'bbox': (x1_local, y1_local, w_local, h_local),
+                        'emotion': emotion,
+                        'probabilities': probs,
+                        'confidence': float(face_probs[i])
+                    })
                 
-                # Display if requested
-                if display:
-                    cv2.imshow('Facial Emotion Analysis', annotated_frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-                
-                # Write to output
-                if out:
-                    out.write(annotated_frame)
+                # Now process each original frame with its corresponding results
+                for i in range(valid_frames):
+                    if batch_frames[i] is None:  # Skip frames we're not processing
+                        continue
+                    
+                    original_frame = batch_frames_original[i]
+                    frame_result = frame_results[i]
+                    processed_count += 1
+                    
+                    # Apply results to frame
+                    if 'faces' in frame_result:
+                        for face_data in frame_result['faces']:
+                            x, y, w, h = face_data['bbox']
+                            emotion = face_data['emotion']
+                            probs = face_data['probabilities']
+                            color = EMOTION_COLORS[emotion]
+                            
+                            # Draw rectangle and emotion
+                            cv2.rectangle(original_frame, (x, y), (x+w, y+h), color, 2)
+                            emotion_text = f"{EMOTIONS[emotion]}: {probs[emotion]*100:.1f}%"
+                            cv2.putText(original_frame, emotion_text, (x, y-10),
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                    
+                    # Store results for this frame for future use
+                    if frame_count % frame_step == 0:
+                        previous_results[i % 4] = frame_result
+                    
+                    # Display if requested
+                    if display:
+                        cv2.imshow('Facial Emotion Analysis', original_frame)
+                        if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to quit
+                            raise KeyboardInterrupt
+                    
+                    # Write to output video
+                    if out:
+                        out.write(original_frame)
             
-            frame_count += 1
-            pbar.update(1)
+            else:
+                # For frames we're not processing, use the previous results
+                for i in range(valid_frames):
+                    original_frame = batch_frames_original[i]
+                    
+                    # Use the appropriate previous result based on frame position
+                    prev_result = previous_results[i % 4]
+                    
+                    if 'faces' in prev_result:
+                        for face_data in prev_result['faces']:
+                            x, y, w, h = face_data['bbox']
+                            emotion = face_data['emotion']
+                            probs = face_data['probabilities']
+                            color = EMOTION_COLORS[emotion]
+                            
+                            # Draw rectangle and emotion
+                            cv2.rectangle(original_frame, (x, y), (x+w, y+h), color, 2)
+                            emotion_text = f"{EMOTIONS[emotion]}: {probs[emotion]*100:.1f}%"
+                            cv2.putText(original_frame, emotion_text, (x, y-10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                    
+                    # Display if requested
+                    if display:
+                        cv2.imshow('Facial Emotion Analysis', original_frame)
+                        if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to quit
+                            raise KeyboardInterrupt
+                    
+                    # Write to output video
+                    if out:
+                        out.write(original_frame)
     
     except KeyboardInterrupt:
         print("\nProcessing interrupted by user.")
