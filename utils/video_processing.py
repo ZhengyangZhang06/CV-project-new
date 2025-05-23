@@ -109,7 +109,8 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
     
     frame_count = 0
     processed_count = 0
-    previous_results = {}  # Store results for each frame position
+    previous_results = {}  # 存储每个处理帧的结果，键为绝对帧位置
+    last_processed_frame = None  # 用于跟踪最后处理的帧的索引
     
     # Create a progress bar
     pbar = tqdm(total=total_frames, desc="Processing video", unit="frames")
@@ -135,6 +136,8 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
                 if frame_count % frame_step == 0:
                     batch_frames.append(frame.copy())
                     batch_indices.append(valid_frames - 1)  # Store index in all_original_frames
+                    # 跟踪最后处理的帧
+                    last_processed_frame = frame_count
                 
                 pbar.update(1)
             
@@ -242,9 +245,9 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
                     frame_result = batch_results[i]
                     
                     # Store results for future use by unprocessed frames
-                    # Use frame_count as key to map to appropriate frames
+                    # 使用绝对帧位置作为键
                     frame_position = frame_count - valid_frames + batch_idx + 1  # Calculate absolute frame position
-                    previous_results[frame_position % frame_step] = frame_result
+                    previous_results[frame_position] = frame_result
                     
                     # Apply results to frame
                     if 'faces' in frame_result:
@@ -265,13 +268,19 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
                     original_frame = all_original_frames[i]
                     frame_position = frame_count - valid_frames + i + 1  # Calculate absolute frame position
                     
-                    # For frames that weren't processed, apply closest previous result
+                    # For frames that weren't processed, find nearest processed frame
                     if frame_position % frame_step != 0:
-                        # Get the appropriate previous result
-                        prev_result = previous_results.get(frame_position % frame_step, {})
+                        # 寻找最近的已处理帧结果
+                        # 计算应该使用的参考帧 - 向前取最近的处理帧
+                        reference_frame = (frame_position // frame_step) * frame_step
+                        if reference_frame == 0:  # 如果是视频最开始的帧，使用之后的第一个处理帧
+                            reference_frame = frame_step
+                            
+                        # 获取参考帧的结果
+                        prev_result = previous_results.get(reference_frame, {})
                         
                         if 'faces' in prev_result:                            
-                              for face_data in prev_result['faces']:
+                            for face_data in prev_result['faces']:
                                 x, y, w, h = face_data['bbox']
                                 emotion = face_data['emotion']
                                 probs = face_data['probabilities']
@@ -299,8 +308,14 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
                     original_frame = all_original_frames[i]
                     frame_position = frame_count - valid_frames + i + 1
                     
-                    # Get the appropriate previous result
-                    prev_result = previous_results.get(frame_position % frame_step, {})
+                    # 寻找最近的已处理帧结果
+                    # 计算应该使用的参考帧 - 向前取最近的处理帧
+                    reference_frame = (frame_position // frame_step) * frame_step
+                    if reference_frame == 0:  # 如果是视频最开始的帧，使用之后的第一个处理帧
+                        reference_frame = frame_step
+                        
+                    # 获取参考帧的结果
+                    prev_result = previous_results.get(reference_frame, {})
                     
                     if 'faces' in prev_result:
                         for face_data in prev_result['faces']:
