@@ -7,12 +7,8 @@ import subprocess
 from utils.emotion_recognition import preprocess_face, predict_emotion, EMOTIONS, EMOTION_COLORS
 from utils.face_detection import predict_faces
 
-def process_frame_with_onnx(frame, ort_session, input_name, emotion_model, device, previous_face_regions):
-    """Process a frame using ONNX face dete        # 在Python 3.13中，VideoFileClip没有set_audio方法，直接设置audio属性
-        video_clip.audio = original_clip.audio
-        
-        # Write the result to a file
-        video_clip.write_videofile(output_video, codec='libx264', audio_codec='aac') and emotion prediction"""
+def process_frame_with_onnx(frame, ort_session, input_name, emotion_model, device, previous_face_regions, input_width=640, input_height=480):
+    """Process a frame using ONNX face detection and emotion prediction"""
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     results = []
@@ -20,9 +16,7 @@ def process_frame_with_onnx(frame, ort_session, input_name, emotion_model, devic
     # Get frame dimensions
     height, width = frame.shape[:2]
     
-    # Preprocess image for ONNX face detection
-    input_width = 640
-    input_height = 480  # Changed from 320 to 240
+    # Preprocess image for ONNX face detection using the provided dimensions
     image = cv2.resize(frame_rgb, (input_width, input_height))
     image_mean = np.array([127, 127, 127])
     image = (image - image_mean) / 128
@@ -77,9 +71,12 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
     from utils.face_detection import load_face_model
     
     # Load ONNX face detection model
-    ort_session = load_face_model(face_model_path)
-    if not ort_session:
+    result = load_face_model(face_model_path)
+    if not result:
         return
+    
+    # Unpack the model session and input dimensions
+    ort_session, input_width, input_height = result
         
     input_name = ort_session.get_inputs()[0].name
     
@@ -161,11 +158,8 @@ def process_video_with_onnx(video_path, emotion_model, device, output_path=None,
                     y_offset = row * frame_height
                     x_offset = col * frame_width
                     grid_image[y_offset:y_offset+frame_height, x_offset:x_offset+frame_width] = frame
-                
-                # Preprocess the grid image for ONNX face detection
+                  # Preprocess the grid image for ONNX face detection using the model's expected dimensions
                 grid_rgb = cv2.cvtColor(grid_image, cv2.COLOR_BGR2RGB)
-                input_width = 640
-                input_height = 480
                 processed_grid = cv2.resize(grid_rgb, (input_width, input_height))
                 image_mean = np.array([127, 127, 127])
                 processed_grid = (processed_grid - image_mean) / 128

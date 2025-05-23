@@ -3,6 +3,37 @@ import numpy as np
 import onnxruntime as ort
 import os
 
+def get_model_input_size(ort_session, model_path=None):
+    """Determine the input size expected by the ONNX face detection model
+    
+    Returns a tuple (width, height) of the expected input dimensions
+    """
+    # First, try to get dimensions from model inputs
+    try:
+        # Get model inputs and their shape information
+        inputs = ort_session.get_inputs()
+        if inputs and len(inputs) > 0:
+            # Get shape of first input (N, C, H, W)
+            shape = inputs[0].shape
+            if len(shape) == 4:
+                # Return width and height (W, H)
+                return shape[3], shape[2]
+    except Exception as e:
+        print(f"Couldn't determine input size from model metadata: {e}")
+    
+    # Fallback to determining size from model filename
+    if model_path:
+        filename = os.path.basename(model_path)
+        # Check for common patterns in filenames
+        if "320" in filename:
+            return 320, 240
+        elif "640" in filename:
+            return 640, 480
+    
+    # Default fallback
+    print("Warning: Could not determine model input size. Using default 640x480.")
+    return 640, 480
+
 def predict_faces(width, height, confidences, boxes, prob_threshold=0.7, iou_threshold=0.3, top_k=-1):
     """Process raw ONNX model output to get face bounding boxes"""
     boxes = boxes[0]
@@ -81,8 +112,17 @@ def nms(box_probs, iou_threshold=0.3, top_k=-1):
         
     return np.array(keep)
 
-def load_face_model(face_model_path=None):
-    """Load ONNX face detection model"""
+def load_face_model(face_model_path=None, suppress_warnings=True):
+    """Load ONNX face detection model
+    
+    Args:
+        face_model_path: Path to the ONNX model file. If None, will try to find a model
+        suppress_warnings: Whether to suppress ONNX Runtime warnings about initializers
+    
+    Returns:
+        tuple: (ort_session, input_width, input_height) containing the ONNX model session
+              and the expected input dimensions
+    """
     onnx_path = None
     
     # Use the provided model path if available
@@ -113,6 +153,20 @@ def load_face_model(face_model_path=None):
         return None
     
     print(f"Using ONNX face detection model: {onnx_path}")
-    ort_session = ort.InferenceSession(onnx_path)
     
-    return ort_session
+    # Configure ONNX Runtime session to suppress warnings if needed
+    session_options = None
+    if suppress_warnings:
+        # Create session options to control logging level
+        session_options = ort.SessionOptions()
+        # 3 = ORT_LOGGING_LEVEL_ERROR (show only errors, no warnings)
+        session_options.log_severity_level = 3
+    
+    # Load the model with optional session options
+    ort_session = ort.InferenceSession(onnx_path, sess_options=session_options)
+    
+    # Get the input size expected by the model
+    input_width, input_height = get_model_input_size(ort_session, onnx_path)
+    print(f"Model expects input size: {input_width}x{input_height}")
+    
+    return ort_session, input_width, input_height
