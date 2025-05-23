@@ -6,10 +6,8 @@ import cv2
 # Project modules
 from models.resnet import ResNet18
 from utils.emotion_recognition import EMOTIONS, EMOTION_COLORS
-from utils.video_processing import (
-    process_video_with_onnx, 
-    merge_audio
-)
+from utils.add_audio import merge_audio
+from utils.video_processing import process_video_with_onnx
 
 # Constants
 IMG_SIZE = 48
