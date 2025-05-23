@@ -6,7 +6,10 @@ import cv2
 # Project modules
 from models.resnet import ResNet18
 from utils.emotion_recognition import EMOTIONS, EMOTION_COLORS
-from utils.video_processing import process_video_with_onnx
+from utils.video_processing import (
+    process_video_with_onnx, 
+    merge_audio
+)
 
 # Constants
 IMG_SIZE = 48
@@ -21,6 +24,7 @@ def main():
     parser.add_argument('--sample_rate', type=int, default=15, help='Frames per second to process (default: 15)')
     parser.add_argument('--no_display', action='store_true', help='Disable video display during processing')
     parser.add_argument('--face_model', help='Path to the ONNX face detection model file (optional)')
+    parser.add_argument('--no_audio', action='store_true', help='Do not merge audio from original video')
     args = parser.parse_args()
     
     # Load the emotion recognition model
@@ -74,6 +78,24 @@ def main():
         display=display,
         face_model_path=face_model_path
     )
+    
+    # Merge audio if output was generated and audio merging is not disabled
+    if output_path and not args.no_audio:
+        # Ask if user wants to add audio (only in interactive mode)
+        add_audio = True
+        if args.video is None:  # If we're in interactive mode
+            audio_option = input("Do you want to merge audio from the original video? (y/n): ").strip().lower()
+            add_audio = audio_option == 'y'
+        
+        if add_audio:
+            print("Merging audio from original video...")
+            # The merge_audio function will now overwrite the processed video if successful
+            final_path = merge_audio(video_path, output_path)
+            
+            if final_path:
+                print(f"Final video with audio saved to: {final_path}")
+            else:
+                print("Failed to merge audio. The processed video will not have audio.")
     
     print("Video processing complete!")
 
