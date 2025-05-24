@@ -15,8 +15,8 @@ A comprehensive real-time facial emotion recognition system that combines ONNX-b
 ## 📸 Demos can be obtained on **[Bilibili](https://www.bilibili.com/video/BV1vPjbzcEwh/)** !
 
 <div style="display: flex; gap: 10px;">
-	<img src="assets/j1_240P1.gif" alt="Demo 1" style="width: 48%;">
-	<img src="assets/j1_240P2.gif" alt="Demo 2" style="width: 48%;">
+	<img src="assets/j1_240P1.gif" alt="Demo 1" style="width: 100%;">
+	<img src="assets/j1_240P2.gif" alt="Demo 2" style="width: 100%;">
 </div>
 
 ## 🏗️ Architecture
