@@ -4,7 +4,7 @@ Script to optimize all ONNX models in the models directory
 
 import os
 import glob
-from optimize_onnx_model import remove_initializers_from_input
+from optimize.optimize_onnx_model import remove_initializers_from_input
 
 def optimize_all_models(directory="models", pattern="*.onnx", backup=True):
     """

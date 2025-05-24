@@ -14,12 +14,12 @@ IMG_SIZE = 48
 NUM_CLASSES = 7
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def main():
-    # Parse command line arguments
+def main():    # Parse command line arguments
     parser = argparse.ArgumentParser(description='Facial Emotion Analysis on Video using ONNX face detection')
     parser.add_argument('--video', help='Path to the input video file')
     parser.add_argument('--output', help='Path to save the output video (optional)')
     parser.add_argument('--sample_rate', type=int, default=15, help='Frames per second to process (default: 15)')
+    parser.add_argument('--process_all', action='store_true', help='Process all frames regardless of sample_rate')
     parser.add_argument('--no_display', action='store_true', help='Disable video display during processing')
     parser.add_argument('--face_model', help='Path to the ONNX face detection model file (optional)')
     parser.add_argument('--no_audio', action='store_true', help='Do not merge audio from original video')
@@ -65,8 +65,7 @@ def main():
     if args.video is None:  # If we're in interactive mode
         display_option = input("Do you want to display video while processing? (y/n): ").strip().lower()
         display = display_option == 'y'
-    
-    # Process the video with ONNX face detection
+      # Process the video with ONNX face detection
     process_video_with_onnx(
         video_path, 
         model, 
@@ -74,7 +73,8 @@ def main():
         output_path=output_path,
         sample_rate=args.sample_rate,
         display=display,
-        face_model_path=face_model_path
+        face_model_path=face_model_path,
+        process_all=args.process_all
     )
     
     # Merge audio if output was generated and audio merging is not disabled
