@@ -19,6 +19,7 @@ def main():    # Parse command line arguments
     parser.add_argument('--video', help='Path to the input video file')
     parser.add_argument('--output', help='Path to save the output video (optional)')    
     parser.add_argument('--sample_step', type=int, default=2, choices=[1, 2, 3, 4], help='Step size for frame sampling: process every N frames (1-4, default: 2)')
+    parser.add_argument('--batch_size', type=int, default=4, choices=[1, 4, 9, 16], help='Batch size for processing frames (1, 4, 9, or 16, default: 4)')
     parser.add_argument('--process_all', action='store_true', help='Process all frames regardless of sample_step')
     parser.add_argument('--no_display', action='store_true', help='Disable video display during processing')
     parser.add_argument('--face_model', help='Path to the ONNX face detection model file (optional)')
@@ -59,12 +60,23 @@ def main():    # Parse command line arguments
             output_path = input("Enter the output path (or press Enter for default): ").strip()
             if not output_path:
                 output_path = 'output_' + os.path.basename(video_path)
-    
-    # Ask if user wants to see the processing (only in interactive mode)
+      # Ask if user wants to see the processing (only in interactive mode)
     display = not args.no_display
     if args.video is None:  # If we're in interactive mode
         display_option = input("Do you want to display video while processing? (y/n): ").strip().lower()
-        display = display_option == 'y'      # Process the video with ONNX face detection
+        display = display_option == 'y'
+        
+        # Ask for batch size in interactive mode
+        print("\nBatch size options:")
+        print("1 - Single frame (1x1 grid) - Slowest but most accurate")
+        print("4 - Small batch (2x2 grid) - Good balance (default)")
+        print("9 - Medium batch (3x3 grid) - Faster processing")
+        print("16 - Large batch (4x4 grid) - Fastest processing")
+        batch_choice = input("Choose batch size (1/4/9/16) or press Enter for default: ").strip()
+        if batch_choice in ['1', '4', '9', '16']:
+            args.batch_size = int(batch_choice)
+        else:
+            print(f"Using default batch size: {args.batch_size}")      # Process the video with ONNX face detection
     process_video_with_onnx(
         video_path, 
         model, 
@@ -73,7 +85,8 @@ def main():    # Parse command line arguments
         sample_step=args.sample_step,
         display=display,
         face_model_path=face_model_path,
-        process_all=args.process_all
+        process_all=args.process_all,
+        batch_size=args.batch_size
     )
     
     # Merge audio if output was generated and audio merging is not disabled

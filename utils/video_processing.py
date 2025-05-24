@@ -62,14 +62,17 @@ def process_batch_with_onnx(frames, ort_session, input_name, emotion_model, devi
     
     frame_height, frame_width = frames[0].shape[:2]
     batch_size = len(frames)
-    
-    # Determine grid size
+      # Determine grid size based on batch size
     if batch_size == 1:
         grid_rows, grid_cols = 1, 1
     elif batch_size <= 4:
         grid_rows, grid_cols = 2, 2
+    elif batch_size <= 9:
+        grid_rows, grid_cols = 3, 3
+    elif batch_size <= 16:
+        grid_rows, grid_cols = 4, 4
     else:
-        # For larger batches, use larger grids
+        # For larger batches, use square grid
         grid_rows = int(np.ceil(np.sqrt(batch_size)))
         grid_cols = grid_rows
     
@@ -172,7 +175,6 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
     """Improved video processing with batch-then-apply logic
     
     Process frames in batches, then apply results to intermediate frames.
-    For batch_size=4: process frames 0,2,4,6 -> apply to frames 1,3,5,7 -> repeat
     
     Args:
         video_path: Path to input video file
@@ -183,10 +185,19 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         display: Whether to display processing in window
         face_model_path: Path to ONNX face detection model
         process_all: If True, process all frames regardless of sample_step
-        batch_size: Number of frames to process in each batch
+        batch_size: Number of frames to process in each batch (1, 4, 9, or 16)
         debug: If True, print debug information about detection results
     """
     from utils.face_detection import load_face_model
+    
+    # Validate batch_size
+    supported_batch_sizes = [1, 4, 9, 16]
+    if batch_size not in supported_batch_sizes:
+        print(f"Error: batch_size must be one of {supported_batch_sizes}, got {batch_size}")
+        print(f"Automatically adjusting to nearest supported size...")
+        # Find the closest supported batch size
+        batch_size = min(supported_batch_sizes, key=lambda x: abs(x - batch_size))
+        print(f"Using batch_size: {batch_size}")
     
     # Load ONNX face detection model
     result = load_face_model(face_model_path)
@@ -215,10 +226,10 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         # Validate sample_step is within allowed range
         sample_step = max(1, min(4, sample_step))
         frame_step = sample_step
-    
     print(f"Video properties: {frame_width}x{frame_height}, {fps:.1f} FPS, {total_frames} total frames")
     print(f"Sampling: processing every {frame_step} frame(s) (sample step: {sample_step})")
-    print(f"Batch processing: {batch_size} frames per batch")    # Setup video writer
+    print(f"Batch processing: {batch_size} frames per batch")
+    print_batch_size_info(batch_size)    # Setup video writer
     out = None
     if output_path:
         # Keep original FPS to maintain video duration
@@ -334,7 +345,7 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                 # Skip if frame already written to avoid duplicates
                 if frame_idx in written_frames:
                     continue
-                    
+                
                 frame_copy = all_frames[frame_idx].copy()
                 
                 # Find the appropriate results to apply
@@ -406,11 +417,12 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         print(f"Frames with faces: {frames_with_faces}")
         print(f"Frames without faces: {frames_without_faces}")        
         print(f"Face detection rate: {frames_with_faces/processed_count*100:.1f}% of processed frames" if processed_count > 0 else "N/A")
-        print(f"Expected processing rate: {expected_ratio:.1f}%")
+        print(f"Expected processing rate: {expected_ratio:.1f}%")        
         print(f"Sampling step: {sample_step} (video: {fps:.1f} FPS)")
         if output_path:
             print(f"Output video FPS: {fps:.1f} (maintained original duration)")
         print(f"Batch processing: {batch_size} frames per batch")
+        print_batch_size_info(batch_size)
         print(f"Total batches processed: {current_batch_num}/{total_batches}")
         
         accuracy_diff = abs(processing_ratio - expected_ratio)
@@ -428,9 +440,24 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
 
 # Legacy function for backward compatibility
 def process_video_with_onnx(video_path, emotion_model, device, output_path=None, sample_step=2, 
-                           display=True, face_model_path=None, process_all=False):
+                           display=True, face_model_path=None, process_all=False, batch_size=4):
     """Legacy function - calls improved version"""
     return process_video_with_onnx_improved(
         video_path, emotion_model, device, output_path, sample_step, 
-        display, face_model_path, process_all
+        display, face_model_path, process_all, batch_size
     )
+
+def print_batch_size_info(batch_size):
+    """Print information about the grid layout for the given batch size"""
+    grid_layouts = {
+        1: (1, 1, "Single frame processing"),
+        4: (2, 2, "2x2 grid - optimal for most cases"),
+        9: (3, 3, "3x3 grid - good for larger batches"),
+        16: (4, 4, "4x4 grid - maximum efficiency for large batches")
+    }
+    
+    if batch_size in grid_layouts:
+        rows, cols, description = grid_layouts[batch_size]
+        print(f"Batch size {batch_size}: {rows}x{cols} grid layout - {description}")
+    else:
+        print(f"Batch size {batch_size}: Custom grid layout")
