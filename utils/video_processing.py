@@ -167,7 +167,7 @@ def apply_face_results_to_frame(frame, face_results):
         cv2.putText(frame, emotion_text, (x, y-10),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-def process_video_with_onnx_improved(video_path, emotion_model, device, output_path=None, sample_rate=15, 
+def process_video_with_onnx_improved(video_path, emotion_model, device, output_path=None, sample_step=2, 
                                    display=True, face_model_path=None, process_all=False, batch_size=4, debug=False):
     """Improved video processing with batch-then-apply logic
     
@@ -179,10 +179,10 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         emotion_model: Emotion recognition model
         device: Device to run emotion model on (CPU/CUDA)
         output_path: Path to save output video
-        sample_rate: Target frames per second to process
+        sample_step: Step size for frame sampling (1-4): process every N frames
         display: Whether to display processing in window
         face_model_path: Path to ONNX face detection model
-        process_all: If True, process all frames regardless of sample_rate
+        process_all: If True, process all frames regardless of sample_step
         batch_size: Number of frames to process in each batch
         debug: If True, print debug information about detection results
     """
@@ -207,23 +207,24 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    # Calculate sampling
+      # Calculate sampling
     if process_all:
         frame_step = 1
         print(f"Processing ALL frames (process_all=True)")
     else:
-        frame_step = max(1, int(fps / sample_rate))
+        # Validate sample_step is within allowed range
+        sample_step = max(1, min(4, sample_step))
+        frame_step = sample_step
     
     print(f"Video properties: {frame_width}x{frame_height}, {fps:.1f} FPS, {total_frames} total frames")
-    print(f"Sampling: processing every {frame_step} frame(s) (target: {sample_rate} FPS)")
-    print(f"Batch processing: {batch_size} frames per batch")
-    
-    # Setup video writer
+    print(f"Sampling: processing every {frame_step} frame(s) (sample step: {sample_step})")
+    print(f"Batch processing: {batch_size} frames per batch")    # Setup video writer
     out = None
     if output_path:
+        # Keep original FPS to maintain video duration
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+        print(f"Output video FPS: {fps:.2f} (maintaining original duration)")
     
     # Statistics tracking
     processed_count = 0
@@ -254,11 +255,12 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
     frame_results = {}
     
     # Calculate total batches
-    total_batches = (len(frames_to_process_indices) + batch_size - 1) // batch_size
-    
-    # Initialize progress bars
+    total_batches = (len(frames_to_process_indices) + batch_size - 1) // batch_size    # Initialize progress bars
     batch_pbar = tqdm(total=total_batches, desc="Processing batches", unit="batch", position=0)
     frame_pbar = tqdm(total=total_frames, desc="Applying to frames", unit="frame", position=1)
+    
+    # Track which frames have been written to avoid duplicates
+    written_frames = set()
     
     try:
         # Process frames in batches
@@ -300,8 +302,7 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                     frames_without_faces += 1
                     if debug:
                         print(f"Frame {frame_idx}: No faces detected")
-            
-            # Update batch progress
+              # Update batch progress
             batch_pbar.update(1)
             
             # Apply results to all frames covered by this batch
@@ -321,6 +322,7 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                 # End at the next batch's first processed frame
                 next_first_processed = frames_to_process_indices[batch_end_idx]
                 end_frame = next_first_processed
+                
             if debug:
                 print(f"Applying results to frames {start_frame} to {end_frame-1}")
             
@@ -329,6 +331,10 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
             
             # Apply results to frames in this range
             for frame_idx in range(start_frame, end_frame):
+                # Skip if frame already written to avoid duplicates
+                if frame_idx in written_frames:
+                    continue
+                    
                 frame_copy = all_frames[frame_idx].copy()
                 
                 # Find the appropriate results to apply
@@ -342,12 +348,13 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                 else:
                     # Find the most recent processed frame before this one
                     best_frame = -1
+                    # First check in current batch
                     for processed_frame_idx in reversed(current_batch_indices):
                         if processed_frame_idx <= frame_idx:
                             best_frame = processed_frame_idx
                             break
                     
-                    # If no frame found in current batch, look in previous results
+                    # If no frame found in current batch, look in all previous results
                     if best_frame == -1:
                         for processed_frame_idx in sorted(frame_results.keys(), reverse=True):
                             if processed_frame_idx < frame_idx:
@@ -357,6 +364,8 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                     if best_frame >= 0:
                         results_to_apply = frame_results[best_frame]
                         result_source = f"inherited_from_{best_frame}"
+                        if debug and frame_idx % 50 == 0:
+                            print(f"Frame {frame_idx}: Inheriting from frame {best_frame}")
                 
                 # Apply the results
                 if results_to_apply:
@@ -373,6 +382,7 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                 # Write to output
                 if out:
                     out.write(frame_copy)
+                    written_frames.add(frame_idx)
                 
                 # Update frame progress
                 frame_pbar.update(1)
@@ -385,20 +395,22 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         # Close progress bars
         batch_pbar.close()
         frame_pbar.close()
-        
-        # Print statistics
+          # Print statistics
         processing_ratio = processed_count / total_frames * 100 if total_frames > 0 else 0
         expected_ratio = len(frames_to_process_indices) / total_frames * 100 if total_frames > 0 else 0
         
         print("\n--- Processing Statistics ---")
         print(f"Total frames: {total_frames}")
         print(f"Processed frames: {processed_count} ({processing_ratio:.1f}%)")
+        print(f"Output frames: {len(written_frames)} (all frames with inherited results)")
         print(f"Frames with faces: {frames_with_faces}")
-        print(f"Frames without faces: {frames_without_faces}")
+        print(f"Frames without faces: {frames_without_faces}")        
         print(f"Face detection rate: {frames_with_faces/processed_count*100:.1f}% of processed frames" if processed_count > 0 else "N/A")
         print(f"Expected processing rate: {expected_ratio:.1f}%")
-        print(f"Sampling rate: {sample_rate} FPS (video: {fps:.1f} FPS)")
-        print(f"Batch processing pattern: process {batch_size} frames -> apply to intermediate frames")
+        print(f"Sampling step: {sample_step} (video: {fps:.1f} FPS)")
+        if output_path:
+            print(f"Output video FPS: {fps:.1f} (maintained original duration)")
+        print(f"Batch processing: {batch_size} frames per batch")
         print(f"Total batches processed: {current_batch_num}/{total_batches}")
         
         accuracy_diff = abs(processing_ratio - expected_ratio)
@@ -415,10 +427,10 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         cv2.destroyAllWindows()
 
 # Legacy function for backward compatibility
-def process_video_with_onnx(video_path, emotion_model, device, output_path=None, sample_rate=15, 
+def process_video_with_onnx(video_path, emotion_model, device, output_path=None, sample_step=2, 
                            display=True, face_model_path=None, process_all=False):
     """Legacy function - calls improved version"""
     return process_video_with_onnx_improved(
-        video_path, emotion_model, device, output_path, sample_rate, 
+        video_path, emotion_model, device, output_path, sample_step, 
         display, face_model_path, process_all
     )
