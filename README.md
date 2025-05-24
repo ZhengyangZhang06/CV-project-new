@@ -12,6 +12,13 @@ A comprehensive real-time facial emotion recognition system that combines ONNX-b
 - **📈 Performance Analytics**: Detailed processing statistics and performance monitoring
 - **🛠️ Model Optimization**: ONNX model optimization tools for better performance
 
+## 📸 Demos can be obtained on **[Bilibili](https://www.bilibili.com/video/BV1vPjbzcEwh/)** !
+
+<div style="display: flex; gap: 10px;">
+	<img src="assets/j1_240P1.gif" alt="Demo 1" style="width: 48%;">
+	<img src="assets/j1_240P2.gif" alt="Demo 2" style="width: 48%;">
+</div>
+
 ## 🏗️ Architecture
 
 ```
@@ -223,18 +230,6 @@ python optimize/optimize_all_models.py
 3. **Coordinate Mapping** → **Face Extraction** → **Emotion Recognition**
 4. **Result Application** → **Video Output** → **Audio Merging**
 
-### Dependencies
-
-```python
-torch>=1.9.0          # PyTorch for emotion model
-torchvision>=0.10.0    # Image transformations
-opencv-python>=4.5.0   # Video processing
-onnxruntime>=1.8.0     # ONNX model inference
-matplotlib>=3.3.0      # Visualization
-numpy>=1.19.0          # Numerical computing
-tqdm>=4.60.0          # Progress bars
-pillow>=8.0.0         # Image processing
-```
 
 ## 🎨 Visualization System
 
@@ -260,6 +255,7 @@ The project includes comprehensive visualization tools:
 - **dlib-based implementations**: Earlier versions using dlib for face detection
 - **Training experiments**: Model training and validation scripts for emotion recognition
 - **Feature extraction**: SIFT and keypoint-based approaches
+- **Past hub link**: [Past Work](https://github.com/ZhengyangZhang06/Computer-Vision-Project)
 
 ### Current System Advantages
 - ✅ 3-5x faster processing with batch optimization
@@ -357,3 +353,8 @@ python batch_detection_visualization.py \
 **Author**: ChangxunPan, Zhengyang Zhang
 
 For questions, issues, or feature requests, please refer to the project documentation or create an issue in the repository.
+
+
+## 🙏 Acknowledgments
+- **[Copilot](https://github.com/features/copilot)**: AI-powered code debugging and suggestions
+- **[杰哥不要 官方正版 高清重制](https://www.bilibili.com/video/BV1rA411g7q8?vd_source=f28cd8d319e970165328cbcf591320b5)**: project inspiration

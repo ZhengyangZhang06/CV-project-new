@@ -4,7 +4,7 @@ from tqdm import tqdm
 import os
 import subprocess
 
-from utils.emotion_recognition import preprocess_face, predict_emotion, EMOTIONS, EMOTION_COLORS
+from utils.emotion_recognition import preprocess_face, predict_emotion, EMOTIONS, EMOTION_COLORS, put_chinese_text
 from utils.face_detection import predict_faces
 
 def process_frame_with_onnx(frame, ort_session, input_name, emotion_model, device, input_width=640, input_height=480):
@@ -167,11 +167,15 @@ def apply_face_results_to_frame(frame, face_results):
         probs = face_data['probabilities']
         color = EMOTION_COLORS[emotion]
         
-        # Draw rectangle and emotion text
+        # Draw rectangle
         cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
+        
+        # Draw Chinese emotion text using PIL
         emotion_text = f"{EMOTIONS[emotion]}: {probs[emotion]*100:.1f}%"
-        cv2.putText(frame, emotion_text, (x, y-10),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+        cv2.putText(frame, emotion_text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)  # use OpenCV
+        #frame[:] = put_chinese_text(frame, emotion_text, (x, y-35), font_size=30, color=color)  # use PIL to show Chinese text
+    
+    return frame
 
 def process_video_with_onnx_improved(video_path, emotion_model, device, output_path=None, sample_step=2, 
                                    display=True, face_model_path=None, process_all=False, batch_size=4, debug=False):
@@ -379,10 +383,9 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
                         result_source = f"inherited_from_{best_frame}"
                         if debug and frame_idx % 50 == 0:
                             print(f"Frame {frame_idx}: Inheriting from frame {best_frame}")
-                
-                # Apply the results
+                  # Apply the results
                 if results_to_apply:
-                    apply_face_results_to_frame(frame_copy, results_to_apply)
+                    frame_copy = apply_face_results_to_frame(frame_copy, results_to_apply)
                     if debug and frame_idx % 50 == 0:
                         print(f"Frame {frame_idx}: Applied {len(results_to_apply)} detection(s) ({result_source})")
                 
