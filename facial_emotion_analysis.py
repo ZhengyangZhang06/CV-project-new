@@ -19,7 +19,7 @@ def main():    # Parse command line arguments
     parser.add_argument('--video', help='Path to the input video file')
     parser.add_argument('--output', help='Path to save the output video (optional)')    
     parser.add_argument('--sample_step', type=int, default=2, choices=[1, 2, 3, 4], help='Step size for frame sampling: process every N frames (1-4, default: 2)')
-    parser.add_argument('--batch_size', type=int, default=4, choices=[1, 4, 9, 16], help='Batch size for processing frames (1, 4, 9, or 16, default: 4)')
+    parser.add_argument('--batch_size', type=int, default=4, choices=[1, 4, 9, 16, 25, 36], help='Batch size for processing frames (1, 4, 9, 16, 25, or 36, default: 4)')
     parser.add_argument('--process_all', action='store_true', help='Process all frames regardless of sample_step')
     parser.add_argument('--no_display', action='store_true', help='Disable video display during processing')
     parser.add_argument('--face_model', help='Path to the ONNX face detection model file (optional)')
@@ -65,18 +65,19 @@ def main():    # Parse command line arguments
     if args.video is None:  # If we're in interactive mode
         display_option = input("Do you want to display video while processing? (y/n): ").strip().lower()
         display = display_option == 'y'
-        
-        # Ask for batch size in interactive mode
+          # Ask for batch size in interactive mode
         print("\nBatch size options:")
         print("1 - Single frame (1x1 grid) - Slowest but most accurate")
         print("4 - Small batch (2x2 grid) - Good balance (default)")
         print("9 - Medium batch (3x3 grid) - Faster processing")
-        print("16 - Large batch (4x4 grid) - Fastest processing")
-        batch_choice = input("Choose batch size (1/4/9/16) or press Enter for default: ").strip()
-        if batch_choice in ['1', '4', '9', '16']:
+        print("16 - Large batch (4x4 grid) - Fast processing")
+        print("25 - Extra large batch (5x5 grid) - High throughput")
+        print("36 - Maximum batch (6x6 grid) - Fastest processing")
+        batch_choice = input("Choose batch size (1/4/9/16/25/36) or press Enter for default: ").strip()
+        if batch_choice in ['1', '4', '9', '16', '25', '36']:
             args.batch_size = int(batch_choice)
         else:
-            print(f"Using default batch size: {args.batch_size}")      # Process the video with ONNX face detection
+            print(f"Using default batch size: {args.batch_size}")# Process the video with ONNX face detection
     process_video_with_onnx(
         video_path, 
         model, 

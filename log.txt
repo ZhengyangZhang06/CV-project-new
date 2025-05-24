@@ -1,0 +1,18 @@
+30fps video on a laptop cpu
+640 model:
+sample_step: 2 (process once every 2 frames)
+  batch_size: 1   time cost: 70s
+	batch_size: 4   time cost: 33s
+	batch_size: 9   time cost: 25s 
+	batch_size: 16  time cost: 23s 
+	batch_size: 25  time cost: 17s (Face detection may be less reliable here but can still be acceptable)
+	batch_size: 36  time cost: 19s (work not very well, can detected out around 70% of the time)
+
+320 model:
+sample_step: 2 (process once every 2 frames)
+  batch_size: 1   time cost: 37s
+	batch_size: 4   time cost: 30s
+	batch_size: 9   time cost: 25s (From this point, the face cannot be detected sometimes)
+	batch_size: 16  time cost: 22s (Face detection may be less reliable)
+	batch_size: 25  time cost: 18s (Face detection may be less reliable)
+	batch_size: 36  time cost: 16s (work not very well, can detected out around 70% of the time)

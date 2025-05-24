@@ -1,7 +1,7 @@
 # Batch Size Support Documentation
 
 ## Overview
-The video processing system now supports 4 specific batch sizes: 1, 4, 9, and 16 frames per batch.
+The video processing system now supports 6 specific batch sizes: 1, 4, 9, 16, 25, and 36 frames per batch.
 
 ## Batch Size Options
 
@@ -28,10 +28,24 @@ The video processing system now supports 4 specific batch sizes: 1, 4, 9, and 16
 
 ### batch_size=16 (4x4 grid)
 - **Processing**: 16 frames arranged in 4x4 grid
-- **Speed**: Fastest
+- **Speed**: Very fast
 - **Accuracy**: Good (may miss rapid changes)
+- **Memory**: High
+- **Use case**: Long videos, powerful hardware
+
+### batch_size=25 (5x5 grid)
+- **Processing**: 25 frames arranged in 5x5 grid
+- **Speed**: Very fast
+- **Accuracy**: Good for stable scenes
+- **Memory**: Very high
+- **Use case**: High throughput processing, very long videos
+
+### batch_size=36 (6x6 grid)
+- **Processing**: 36 frames arranged in 6x6 grid
+- **Speed**: Fastest
+- **Accuracy**: Good for slow-changing scenes
 - **Memory**: Highest
-- **Use case**: Very long videos, powerful hardware
+- **Use case**: Maximum throughput, very powerful hardware
 
 ## Usage Examples
 
@@ -42,6 +56,12 @@ python facial_emotion_analysis.py --video input.mp4
 
 # Use specific batch size
 python facial_emotion_analysis.py --video input.mp4 --batch_size 9
+
+# Use large batch for high throughput
+python facial_emotion_analysis.py --video input.mp4 --batch_size 25
+
+# Maximum batch size for fastest processing
+python facial_emotion_analysis.py --video input.mp4 --batch_size 36
 
 # Combine with sampling
 python facial_emotion_analysis.py --video input.mp4 --batch_size 16 --sample_step 3
@@ -54,7 +74,10 @@ Batch size options:
 1 - Single frame (1x1 grid) - Slowest but most accurate
 4 - Small batch (2x2 grid) - Good balance (default)
 9 - Medium batch (3x3 grid) - Faster processing
-16 - Large batch (4x4 grid) - Fastest processing
+16 - Large batch (4x4 grid) - Fast processing
+25 - Extra large batch (5x5 grid) - High throughput
+36 - Maximum batch (6x6 grid) - Fastest processing
+Choose batch size (1/4/9/16/25/36) or press Enter for default:
 ```
 
 ## Performance Characteristics
@@ -65,6 +88,8 @@ Batch size options:
 | 4 | 2x2 | 2-3x faster | Medium | General use |
 | 9 | 3x3 | 4-6x faster | High | Long videos |
 | 16 | 4x4 | 6-8x faster | Very High | Bulk processing |
+| 25 | 5x5 | 8-12x faster | Very High | High throughput |
+| 36 | 6x6 | 10-15x faster | Extreme | Maximum speed |
 
 ## Technical Details
 

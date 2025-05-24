@@ -61,8 +61,7 @@ def process_batch_with_onnx(frames, ort_session, input_name, emotion_model, devi
         return []
     
     frame_height, frame_width = frames[0].shape[:2]
-    batch_size = len(frames)
-      # Determine grid size based on batch size
+    batch_size = len(frames)      # Determine grid size based on batch size
     if batch_size == 1:
         grid_rows, grid_cols = 1, 1
     elif batch_size <= 4:
@@ -71,6 +70,10 @@ def process_batch_with_onnx(frames, ort_session, input_name, emotion_model, devi
         grid_rows, grid_cols = 3, 3
     elif batch_size <= 16:
         grid_rows, grid_cols = 4, 4
+    elif batch_size <= 25:
+        grid_rows, grid_cols = 5, 5
+    elif batch_size <= 36:
+        grid_rows, grid_cols = 6, 6
     else:
         # For larger batches, use square grid
         grid_rows = int(np.ceil(np.sqrt(batch_size)))
@@ -189,9 +192,8 @@ def process_video_with_onnx_improved(video_path, emotion_model, device, output_p
         debug: If True, print debug information about detection results
     """
     from utils.face_detection import load_face_model
-    
-    # Validate batch_size
-    supported_batch_sizes = [1, 4, 9, 16]
+      # Validate batch_size
+    supported_batch_sizes = [1, 4, 9, 16, 25, 36]
     if batch_size not in supported_batch_sizes:
         print(f"Error: batch_size must be one of {supported_batch_sizes}, got {batch_size}")
         print(f"Automatically adjusting to nearest supported size...")
@@ -453,7 +455,9 @@ def print_batch_size_info(batch_size):
         1: (1, 1, "Single frame processing"),
         4: (2, 2, "2x2 grid - optimal for most cases"),
         9: (3, 3, "3x3 grid - good for larger batches"),
-        16: (4, 4, "4x4 grid - maximum efficiency for large batches")
+        16: (4, 4, "4x4 grid - maximum efficiency for large batches"),
+        25: (5, 5, "5x5 grid - high throughput processing"),
+        36: (6, 6, "6x6 grid - maximum batch efficiency")
     }
     
     if batch_size in grid_layouts:
