@@ -1,4 +1,4 @@
-30fps video on a laptop cpu
+30fps video on a laptop cpu, the video is 30fps, 1004x480, 2min18s long
 640 model:
 sample_step: 2 (process once every 2 frames)
   batch_size: 1   time cost: 70s
@@ -18,7 +18,7 @@ sample_step: 2 (process once every 2 frames)
 	batch_size: 36  time cost: 16s (work not very well, can detected out around 40% of the time)
 
 640 model:
-batch_size: 25  time cost: 17s (Face detection may be less reliable here but can still be acceptable)
+batch_size: 25  
   sample_step: 1 time cost: 27s (emotion may change too fast)
   sample_step: 2 time cost: 17s (good)
   sample_step: 3 time cost: 15s (good)
