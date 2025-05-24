@@ -18,7 +18,7 @@ def main():    # Parse command line arguments
     parser = argparse.ArgumentParser(description='Facial Emotion Analysis on Video using ONNX face detection')
     parser.add_argument('--video', help='Path to the input video file')
     parser.add_argument('--output', help='Path to save the output video (optional)')    
-    parser.add_argument('--sample_step', type=int, default=2, choices=[1, 2, 3, 4], help='Step size for frame sampling: process every N frames (1-4, default: 2)')
+    parser.add_argument('--sample_step', type=int, default=2, choices=[1, 2, 3, 4, 5], help='Step size for frame sampling: process every N frames (1-5, default: 2)')
     parser.add_argument('--batch_size', type=int, default=4, choices=[1, 4, 9, 16, 25, 36], help='Batch size for processing frames (1, 4, 9, 16, 25, or 36, default: 4)')
     parser.add_argument('--process_all', action='store_true', help='Process all frames regardless of sample_step')
     parser.add_argument('--no_display', action='store_true', help='Disable video display during processing')

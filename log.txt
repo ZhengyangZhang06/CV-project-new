@@ -15,4 +15,12 @@ sample_step: 2 (process once every 2 frames)
 	batch_size: 9   time cost: 25s (From this point, the face cannot be detected sometimes)
 	batch_size: 16  time cost: 22s (Face detection may be less reliable)
 	batch_size: 25  time cost: 18s (Face detection may be less reliable)
-	batch_size: 36  time cost: 16s (work not very well, can detected out around 70% of the time)
+	batch_size: 36  time cost: 16s (work not very well, can detected out around 40% of the time)
+
+640 model:
+batch_size: 25  time cost: 17s (Face detection may be less reliable here but can still be acceptable)
+  sample_step: 1 time cost: 27s (emotion may change too fast)
+  sample_step: 2 time cost: 17s (good)
+  sample_step: 3 time cost: 15s (good)
+	sample_step: 4 time cost: 13s (acceptable)
+	sample_step: 5 time cost: 13s (emotion loss a lot, unacceptable, also, the time cost is not much different from sample_step: 4)
