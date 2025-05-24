@@ -198,42 +198,50 @@ def visualize_grid(frames, titles=None, grid_shape=None, figsize=None, suptitle=
     if figsize is None:
         base_size = 4
         figsize = (grid_shape[1] * base_size, grid_shape[0] * base_size)
-    
     fig, axes = plt.subplots(grid_shape[0], grid_shape[1], figsize=figsize)
-    
-    # Handle single subplot case
+      # Handle single subplot case
     if grid_shape[0] * grid_shape[1] == 1:
         axes = [axes]
     else:
-        axes = axes.flatten()
+        # Ensure row-major ordering (C-style) for axes flattening
+        axes = axes.flatten(order='C')
     
-    # Display frames
-    for i in range(grid_shape[0] * grid_shape[1]):
-        ax = axes[i]
-        
-        if i < len(frames):
-            frame = frames[i]
-            # Convert to RGB for matplotlib
-            if len(frame.shape) == 3 and frame.shape[2] == 3:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                ax.imshow(frame_rgb)
-            else:
-                ax.imshow(frame, cmap='gray')
+    # Display frames using linear indexing with row-major order
+    for i in range(len(frames)):
+        if i >= grid_shape[0] * grid_shape[1]:
+            break
             
-            # Add title with dimensions if available
-            title = f"Frame {i+1}"
-            if titles and i < len(titles):
-                title = titles[i]
-            h, w = frame.shape[:2]
-            title += f" ({w}x{h})"
-            ax.set_title(title)
+        # Use linear indexing for flattened axes array
+        if grid_shape[0] * grid_shape[1] == 1:
+            ax = axes[0]
         else:
-            # Empty subplot for unused grid positions
-            ax.set_visible(False)
+            ax = axes[i]
+        
+        frame = frames[i]
+        # Convert to RGB for matplotlib
+        if len(frame.shape) == 3 and frame.shape[2] == 3:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            ax.imshow(frame_rgb)
+        else:
+            ax.imshow(frame, cmap='gray')
+        
+        # Add title with dimensions if available
+        title = f"Frame {i+1}"
+        if titles and i < len(titles):
+            title = titles[i]
+        h, w = frame.shape[:2]
+        title += f" ({w}x{h})"
+        ax.set_title(title)
         
         # Remove axis ticks
         ax.set_xticks([])
         ax.set_yticks([])
+      # Hide unused subplots
+    for i in range(len(frames), grid_shape[0] * grid_shape[1]):
+        if grid_shape[0] * grid_shape[1] == 1:
+            continue
+        else:
+            axes[i].set_visible(False)
     
     if suptitle:
         plt.suptitle(suptitle, fontsize=16)

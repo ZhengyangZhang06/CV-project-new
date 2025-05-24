@@ -63,7 +63,7 @@ def get_model_name_from_path_and_size(face_model_path, input_width, input_height
 
 
 
-def extract_video_frames(video_path, num_frames, frame_offset=0, frame_interval=1):
+def extract_video_frames(video_path, num_frames, frame_offset=0, frame_interval=2):
     """Extract frames from video
     
     Args:
