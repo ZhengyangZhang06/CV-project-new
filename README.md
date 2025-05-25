@@ -19,6 +19,10 @@ A comprehensive real-time facial emotion recognition system that combines ONNX-b
 	<img src="assets/j1_240P2.gif" alt="Demo 2" style="width: 100%;">
 </div>
 
+## 🛠️ Available in Google Drive for Android!
+- We built an Android app for this project, which is available on Google Drive. You can download it and run it on your Android device. Or see our project [emotion_recognition_android](https://github.com/CXP-2024/emotion-detect-androd) for more details.
+- Download from here: [Download APK](https://drive.google.com/file/d/1rRkA6uFm4zRAMgQN94KcrO517IkqQKrB/view?usp=drive_link)
+
 ## 🏗️ Architecture
 
 ```
@@ -358,3 +362,4 @@ For questions, issues, or feature requests, please refer to the project document
 ## 🙏 Acknowledgments
 - **[Copilot](https://github.com/features/copilot)**: AI-powered code debugging and suggestions
 - **[杰哥不要 官方正版 高清重制](https://www.bilibili.com/video/BV1rA411g7q8?vd_source=f28cd8d319e970165328cbcf591320b5)**: project inspiration
+- **[ONNX Pretrianed model](https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB)**: fast pretrained face detection model
