@@ -44,6 +44,7 @@ A comprehensive real-time facial emotion recognition system that combines ONNX-b
 │   └── optimize_all_models.py       # Batch optimizer
 ├── 📂 output/                       # Generated visualizations
 ├── 📖 past_work/                    # Previous implementations
+├── 🚀 assets/                       # Video storage
 └── 📄 Documentation/                # Guides and documentation
 ```
 
@@ -55,6 +56,21 @@ A comprehensive real-time facial emotion recognition system that combines ONNX-b
 # Install required dependencies
 pip install torch torchvision opencv-python onnxruntime matplotlib numpy tqdm pillow
 ```
+
+
+### Video Assets
+We provide sample video files in the `assets/` folder for testing the system:
+
+- **Input Videos**: Test the emotion recognition system with our provided sample videos
+- **Output Examples**: Pre-processed demonstration videos showing the system's capabilities
+- **Usage**: Use these assets to verify installation and explore different processing configurations
+
+```bash
+# Example using provided assets
+python facial_emotion_analysis.py --video assets/j1_480P_30fps.mp4 --output assets/processed_output.mp4
+```
+
+Check the output examples in the assets folder to see expected results from the emotion analysis system.
 
 ### Basic Usage
 
@@ -81,7 +97,7 @@ python facial_emotion_analysis.py \
 ```bash
 # Visualize batch processing workflow
 python batch_detection_visualization.py \
-    --video j1_480P_30fps.mp4 \
+    --video assets/j1_480P_30fps.mp4 \
     --batch_size 16 \
     --output custom_output \
     --frame_offset 100
